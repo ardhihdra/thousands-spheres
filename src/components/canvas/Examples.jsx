@@ -151,7 +151,6 @@ export function Spheres(props) {
 
   //   if(mouse) shaderRef.current.uMouse.set(mouse.x || 0, mouse.y || 0);
   // })
-  console.log("rerender", prevUHold)
 
   return (
     <mesh

@@ -147,6 +147,18 @@ export default function Page() {
             </div>
           </div>
         </div>
+        <div className="absolute bottom-10 right-20 z-10 flex">
+          This is the R3F version of &nbsp;
+          <a
+            href="https://github.com/Anemolo/100k-objects-with-Instanced-Geometries"
+            className="font-bold text-blue-700 underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            100K objects
+          </a>
+          &nbsp; projects by Anemolo.
+        </div>
       </div>
     </>
   )
@@ -192,7 +204,6 @@ function SphereShader({
       x: (event.clientX / window.innerWidth) * 2 - 1,
       y: -(event.clientY / window.innerHeight) * 2 + 1
     };
-    console.log("CEK EVENT", window)
     setMouse(mouse)
   }
 
