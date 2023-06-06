@@ -1,10 +1,17 @@
 'use client'
 
+import { gsap } from 'gsap'
 import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import * as THREE from 'three'
+
+import { fragmentShader, vertexShader } from '@/helpers/shaders'
+import { shaderMaterial } from '@react-three/drei'
+import { extend, useFrame } from '@react-three/fiber'
 
 const Logo = dynamic(() => import('@/components/canvas/Examples').then((mod) => mod.Logo), { ssr: false })
 const Dog = dynamic(() => import('@/components/canvas/Examples').then((mod) => mod.Dog), { ssr: false })
+const Spheres = dynamic(() => import('@/components/canvas/Examples').then((mod) => mod.Spheres), { ssr: false })
 const Duck = dynamic(() => import('@/components/canvas/Examples').then((mod) => mod.Duck), { ssr: false })
 const View = dynamic(() => import('@/components/canvas/View').then((mod) => mod.View), {
   ssr: false,
@@ -24,59 +31,209 @@ const View = dynamic(() => import('@/components/canvas/View').then((mod) => mod.
 const Common = dynamic(() => import('@/components/canvas/View').then((mod) => mod.Common), { ssr: false })
 
 export default function Page() {
+  const [config, setConfig] = useState({
+    useCube: false,
+    nInstances: 4000,
+    scale: 1
+  })
+  const [animating, setAnimating] = useState(false)
+  const [closed, setClosed] = useState(false)
+  const [uHold, setUHold] = useState(0)
+
+  const defaultAnimation = {
+    from: { value: 0 },
+    to: {
+      value: 1,
+      duration: 0.7,
+      ease: "power2.inOut",
+      onUpdate: setUHold,
+      onComplete: () => {
+        setAnimating(false);
+      }
+    }
+  }
+
+  let addInstances = count => {
+    const newConfig = {...config}
+    newConfig.nInstances += count;
+    newConfig.nInstances = Math.max(500, newConfig.nInstances);
+    let scale = 1 - Math.min(1, (newConfig.nInstances - 500) / 50000) * 0.8;
+    newConfig.scale = scale;
+    setConfig({...newConfig})
+  };
+  let handleLess = () => {
+    addInstances(-500);
+  };
+
+  let handleEvenLess = () => {
+    addInstances(-2000);
+  };
+  let handleMore = () => {
+    addInstances(500);
+  };
+  let handleEvenMore = () => {
+    addInstances(2000);
+  };
+  let handleGeometry = () => {
+    setConfig({...config, useCube: !config.useCube})
+  }
+  let onTap = () => {
+    setUHold(uHold === 1 ? 0: 1)
+  }
+
+  console.log("rerender page")
+
   return (
     <>
-      <div className='mx-auto flex w-full flex-col flex-wrap items-center md:flex-row  lg:w-4/5'>
-        {/* jumbo */}
-        <div className='flex w-full flex-col items-start justify-center p-12 text-center md:w-2/5 md:text-left'>
-          <p className='w-full uppercase'>Next + React Three Fiber</p>
-          <h1 className='my-4 text-5xl font-bold leading-tight'>Next 3D Starter</h1>
-          <p className='mb-8 text-2xl leading-normal'>A minimalist starter for React, React-three-fiber and Threejs.</p>
-        </div>
-
-        <div className='w-full text-center md:w-3/5'>
-          <View className='flex h-96 w-full flex-col items-center justify-center'>
+      <div className='h-full w-full items-center' onClick={onTap}>
+        <div id="spheres" uhold={0} className='relative h-full w-full'>
+          <View orbit className='relative h-full sm:w-full'>
             <Suspense fallback={null}>
-              <Logo route='/blob' scale={0.6} position={[0, 0, 0]} />
-              <Common />
-            </Suspense>
-          </View>
-        </div>
-      </div>
-
-      <div className='mx-auto flex w-full flex-col flex-wrap items-center p-12 md:flex-row  lg:w-4/5'>
-        {/* first row */}
-        <div className='relative h-48 w-full py-6 sm:w-1/2 md:my-12 md:mb-40'>
-          <h2 className='mb-3 text-3xl font-bold leading-none text-gray-800'>Events are propagated</h2>
-          <p className='mb-8 text-gray-600'>Drag, scroll, pinch, and rotate the canvas to explore the 3D scene.</p>
-        </div>
-        <div className='relative my-12 h-48 w-full py-6 sm:w-1/2 md:mb-40'>
-          <View orbit className='relative h-full  sm:h-48 sm:w-full'>
-            <Suspense fallback={null}>
-              <Dog scale={2} position={[0, -1.6, 0]} rotation={[0.0, -0.3, 0]} />
+              <Spheres
+                config={config}
+                colors={[
+                  new THREE.Color("#ff3030"),
+                  new THREE.Color("#121214")
+                ]}
+              >
+                <SphereShader
+                  config={config}
+                  uHold={uHold}
+                  uTime={1}
+                  colors={[
+                    new THREE.Color("#ff3030"),
+                    new THREE.Color("#121214")
+                  ]}
+                />
+              </Spheres>
+              <Spheres
+                config={config}
+                uTime={-1}
+                uHold={uHold}
+                rotation={[Math.PI, Math.PI/2, 0]}
+                colors={[
+                  new THREE.Color("#5050ff"),
+                  new THREE.Color("#121214")
+                ]}
+              >
+                <SphereShader
+                  config={config}
+                  uHold={uHold}
+                  uTime={-1}
+                  colors={[
+                    new THREE.Color("#5050ff"),
+                    new THREE.Color("#121214")
+                  ]}
+                />
+              </Spheres>
               <Common color={'lightpink'} />
             </Suspense>
           </View>
         </div>
-        {/* second row */}
-        <div className='relative my-12 h-48 w-full py-6 sm:w-1/2 md:mb-40'>
-          <View orbit className='relative h-full animate-bounce sm:h-48 sm:w-full'>
-            <Suspense fallback={null}>
-              <Duck route='/blob' scale={2} position={[0, -1.6, 0]} />
-              <Common color={'lightblue'} />
-            </Suspense>
-          </View>
-        </div>
-        <div className='w-full p-6 sm:w-1/2'>
-          <h2 className='mb-3 text-3xl font-bold leading-none text-gray-800'>Dom and 3D are synchronized</h2>
-          <p className='mb-8 text-gray-600'>
-            3D Divs are renderer through the View component. It uses gl.scissor to cut the viewport into segments. You
-            tie a view to a tracking div which then controls the position and bounds of the viewport. This allows you to
-            have multiple views with a single, performant canvas. These views will follow their tracking elements,
-            scroll along, resize, etc.
-          </p>
+        <div className="absolute bottom-10 left-0 z-10 flex w-full justify-center">
+          <div className="font-serif">
+            <div className="font-medium tracking-wide">INSTANCED GEOMETRY</div>
+            <div className="text-center text-6xl font-bold">
+              {config.nInstances*2}
+            </div>
+            <div className="mt-4 flex flex-row gap-9 text-xl font-extrabold">
+              <div className="cursor-pointer" onClick={handleEvenLess}>&#60;&#60;</div>
+              <div className="cursor-pointer" onClick={handleLess}>&#60;</div>
+              <div className="cursor-pointer" onClick={handleMore}>&#62;</div>
+              <div className="cursor-pointer" onClick={handleEvenMore}>&#62;&#62;</div>
+            </div>
+            <div className="mt-4 cursor-pointer text-center underline" onClick={handleGeometry}>
+              Use {config.useCube ? 'Boxes': 'Cubes'}
+            </div>
+          </div>
         </div>
       </div>
     </>
+  )
+}
+
+
+function SphereShader({
+  config, uHold, uTime
+}) {
+  console.log('rerender shader')
+  const [prevUHold, setPrevUHold] = useState(0)
+  const [mWindow, setMWindow] = useState({})
+  const [mouse, setMouse] = useState({})
+
+  const shaderRef = useRef()
+  // shaders
+  const uniforms = useMemo(() => ({
+    // uTime: new THREE.Uniform(0),
+    // uMouse: new THREE.Uniform(new THREE.Vector2(0, 0)),
+    // uHold: new THREE.Uniform(0),
+    // uScale: new THREE.Uniform(config.scale)
+    uTime: 0,
+    uMouse: new THREE.Vector2(0, 0),
+    uHold: uHold || 0,
+    uScale: config.scale
+  }), [config.scale, uHold])
+  const CustomShader = shaderMaterial(
+    uniforms,
+    vertexShader,
+    fragmentShader
+  )
+  extend({ CustomShader })
+
+  const handleWindowResize = () => {
+    setMWindow({
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight
+    })
+  }
+
+  function handleMouseMove(event) {
+    let mouse = {
+      x: (event.clientX / window.innerWidth) * 2 - 1,
+      y: -(event.clientY / window.innerHeight) * 2 + 1
+    };
+    console.log("CEK EVENT", window)
+    setMouse(mouse)
+  }
+
+  useEffect(() => {
+    if (window !== undefined) {
+      // handleWindowResize();
+      // window.addEventListener('resize', handleWindowResize);
+      window.addEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
+
+  function updateShaders(shaderRef, state, uTime) {
+    shaderRef.current.uTime = state.clock.elapsedTime * uTime;
+    
+    if (prevUHold !== uHold) {
+      let newUHold = prevUHold
+      if (prevUHold > uHold) {
+        newUHold = Math.max(uHold, prevUHold - 0.05)
+      } else {
+        newUHold = Math.min(uHold, prevUHold + 0.05)
+      }
+      shaderRef.current.uHold = newUHold
+      setPrevUHold(newUHold)
+    }
+    if(mouse) shaderRef.current.uMouse.set(mouse.x || 0, mouse.y || 0);
+  }
+
+  useFrame((state, delta) => {
+    state.camera.position.z = 260
+    if (shaderRef.current) updateShaders(shaderRef, state, uTime)
+  })
+
+  return (
+    <customShader
+      attach="material"
+      key={CustomShader.key}
+      ref={shaderRef}
+      colors={[
+        new THREE.Color("#ff3030"),
+        new THREE.Color("#121214")
+      ]}
+    />
   )
 }
